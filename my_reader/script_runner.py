@@ -8,8 +8,8 @@ import sys
 sys.path.append('..')
 
 
-from Zeras.vocab import Vocab
-from Zeras.data_batcher import DataBatcher
+from vocab import Vocab
+from data_batcher import DataBatcher
 
 from data_utils import example_generator, do_batch_std
 from model_doc_qa import ModelDocQA
@@ -78,7 +78,7 @@ def parse_args():
     parser = argparse.ArgumentParser('Reading Comprehension')
     #
     parser.add_argument('--mode', choices=['prepare', 'train', 'eval', 'predict', 'convert'],
-                        default = 'train', help='run mode')
+                        default = 'predict', help='run mode')
     parser.add_argument('--note', type=str, default = "note_something",
                         help='note_something')
     parser.add_argument('--debug', type=int, default = 1, 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         test_files = demo_data["test"]
         #
         args.vocab_dir = dir_vocab_demo
-        args.base_dir = "../task_mc_demo"
+        args.base_dir = "../task_mrc_demo"
         #
         assign_paras_from_dict(args, debug_paras)
         #
@@ -151,7 +151,7 @@ if __name__ == '__main__':
         test_files = data_all["test"]
         #
         args.vocab_dir = dir_vocab_all
-        args.base_dir = "../task_mc_all"
+        args.base_dir = "../task_mrc_all"
         #
         assign_paras_from_dict(args, model_paras)
         #
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     args.log_dir = os.path.join(args.base_dir, "log")
     args.result_dir = os.path.join(args.base_dir, "result")
     #
-    for dir_path in [args.base_dir, args.model_dir, args.log_dir]:
+    for dir_path in [args.base_dir, args.model_dir, args.log_dir, args.result_dir]:
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
     #
@@ -235,20 +235,25 @@ if __name__ == '__main__':
     elif args.mode == "predict":
         example_gen = lambda single_pass: example_generator(test_files, False, args.max_p_len, single_pass)
         batch_stder = lambda items: do_batch_std(items, vocab, args)
-        batcher = DataBatcher(example_gen, batch_stder, 1, single_pass=True)
+        batcher = DataBatcher(example_gen, batch_stder, args.batch_size, single_pass=True)
         #
+        pb_file = os.path.join(args.model_dir + "_best", "model_frozen.pb")
         model = ModelDocQA(args)
-        model.prepare_for_train(args.model_dir)
-        model.assign_dropout_keep_prob(1.0)
+        model.prepare_for_prediction_with_pb(pb_file)
         #
         model_utils.do_predict(model, batcher, args,
                                result_dir = args.result_dir,
-                               result_prefix = "test",
+                               result_prefix = "pred",
                                save_full_info = False)
         model.close_logger()
         #
+    elif args.mode == "convert":
+        args.is_train = False
+        model = ModelDocQA(args)
+        model.load_ckpt_and_save_pb_file(model, args.model_dir + "_best")
+        print("load_ckpt_and_save_pb_file() finished")
     else:
-        print("args.mode must be [train|eval|predict]")
+        print("args.mode must be [train|eval|predict|convert]")
         #
     
     

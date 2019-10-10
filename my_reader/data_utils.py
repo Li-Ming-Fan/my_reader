@@ -7,7 +7,7 @@ import random
 from collections import Counter
 from collections import namedtuple
 
-from Zeras.vocab import Vocab
+from vocab import Vocab
 
 #
 def example_generator(filelist, is_train_data, max_p_len, single_pass):
@@ -117,6 +117,7 @@ def do_batch_std(list_samples, vocab, settings):
     for sidx, sample in enumerate(list_samples):
         #
         # data_raw
+        batch_data["data_raw"].append(sample)
         #
         # question
         sample['question_token_ids'] = vocab.convert_tokens_to_ids(sample['question_tokens'])

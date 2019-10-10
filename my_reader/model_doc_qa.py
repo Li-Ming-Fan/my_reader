@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 
-from Zeras.model_baseboard import ModelBaseboard
+from model_baseboard import ModelBaseboard
 
 from model_modules import do_encoding, do_matching, do_featuring
 from model_modules import do_meshing_scores
@@ -19,6 +19,7 @@ class ModelDocQA(ModelBaseboard):
         """
         """
         super(ModelDocQA, self).__init__(settings)
+        #
         
     
     def build_placeholder(self):
@@ -41,6 +42,8 @@ class ModelDocQA(ModelBaseboard):
         label_tensors["passage_idx"] = passage_idx
         label_tensors["start_label"] = start_label
         label_tensors["end_label"] = end_label
+        #
+        print(input_tensors)
         #
         return input_tensors, label_tensors
     
@@ -152,7 +155,7 @@ class ModelDocQA(ModelBaseboard):
         #
         pred_probs = tf.gather_nd(span_prob, indices)  # [B, ]
         epsilon = 1e-10 # * tf.ones_like(pred_probs)
-        loss = - tf.reduce_sum(tf.log(pred_probs + epsilon))
+        loss = - tf.reduce_mean(tf.log(pred_probs + epsilon))
         #
         lossput_tensors = {}
         lossput_tensors["loss_train"] = loss
@@ -191,8 +194,11 @@ class ModelDocQA(ModelBaseboard):
         self.results_eval_one_batch["idx_passage"] = self.idx_passage
         self.results_eval_one_batch["idx_start"] = self.idx_start
         self.results_eval_one_batch["idx_end"] = self.idx_end   
-        self.results_eval_one_batch["pred_prob"] = self.pred_prob   
-        #        
+        self.results_eval_one_batch["pred_prob"] = self.pred_prob
+        #
+        print(self.results_eval_one_batch)
+        print(self.span_probs)
+        #
     
     def make_feed_dict_for_train(self, batch):
         """
@@ -204,6 +210,45 @@ class ModelDocQA(ModelBaseboard):
         feed_dict[self.passage_idx_label] = batch["batch_passage_idx"]
         feed_dict[self.start_label] = batch["batch_start_label"]
         feed_dict[self.end_label] = batch["batch_end_label"]
+        #
+        # print(batch)
+        #
+        return feed_dict
+    
+    #
+    # predict
+    def set_port_tensors_for_predict(self):
+        """
+        """
+        self.pb_outputs_name = ["vs_gpu/scores/FloorDiv",
+                                "vs_gpu/scores/FloorDiv_1",
+                                "vs_gpu/scores/sub_2",
+                                "vs_gpu/scores/Reshape_5" ]
+        self.outputs_predict_name = [item + ":0" for item in self.pb_outputs_name]
+        #
+        # graph
+        graph, sess = self.get_model_graph_and_sess()
+        #
+        # inputs
+        self.questions = graph.get_tensor_by_name("input_q:0")
+        self.passages = graph.get_tensor_by_name("input_p:0")
+        #
+        # outputs
+        self.outputs_predict = []
+        for item in self.outputs_predict_name:
+            self.outputs_predict.append(graph.get_tensor_by_name(item))
+        #        
+        
+    def make_feed_dict_for_predict(self, batch):
+        """
+        """
+        feed_dict = {}
+        feed_dict[self.questions] = batch["batch_questions"]
+        feed_dict[self.passages] = batch["batch_passages"]
+        #
+        # feed_dict[self.passage_idx_label] = batch["batch_passage_idx"]
+        # feed_dict[self.start_label] = batch["batch_start_label"]
+        # feed_dict[self.end_label] = batch["batch_end_label"]
         #
         # print(batch)
         #
