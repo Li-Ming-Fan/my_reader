@@ -1,9 +1,9 @@
-#
-#__pycache__/
 
 #
-data_v2/
-task_mrc_*/
-*.zip
+.vscode/
+__pycache__/
+task_dureader/
+
+
 
 
