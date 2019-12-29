@@ -103,11 +103,7 @@ def do_train(model, train_batcher, settings):
     total_num, total_loss = 0, 0
     sect_batch_loss = 0.0
     sect_range = settings.check_period_batch
-    #
     loss_best = 10000
-    dir_best = os.path.join(settings.base_dir, "model_best")
-    if not os.path.exists(dir_best):
-        os.makedirs(dir_best)
     #
     # count = 0 
     while True:
@@ -137,9 +133,9 @@ def do_train(model, train_batcher, settings):
                 global_step - sect_range + 1, global_step, sect_mean_loss))
             sect_batch_loss = 0
             #
-            model.save_ckpt(settings.model_dir, "docqa", global_step)
+            model.save_ckpt(settings.model_dir, settings.model_tag, global_step)
             if sect_mean_loss < loss_best:
-                model.save_ckpt_best(dir_best, "docqa", global_step)
+                model.save_ckpt_best(settings.model_dir_best, settings.model_tag, global_step)
                 loss_best = sect_mean_loss
             #
             
@@ -163,9 +159,9 @@ def do_predict(model, batcher, settings, result_dir=None, result_prefix=None, sa
         count += 1
         print(count)
         #
-        idx_passage = results[0]
-        idx_start = results[1]
-        idx_end = results[2]
+        idx_passage = results["idx_passage"]
+        idx_start = results["idx_start"]
+        idx_end = results["idx_end"]
         # pred_prob = results["pred_prob"]
         #
         batch_size = len(idx_passage)

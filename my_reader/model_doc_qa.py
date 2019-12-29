@@ -20,12 +20,12 @@ class ModelDocQA(ModelBaseboard):
         """
         super(ModelDocQA, self).__init__(settings)
         #
-        self.pb_outputs_name = ["vs_gpu/scores/FloorDiv",
-                                "vs_gpu/scores/FloorDiv_1",
-                                "vs_gpu/scores/sub_2",
-                                "vs_gpu/scores/Reshape_5" ]
-        self.pb_input_names = {"questions": "input_q:0",
-                               "passages": "input_p:0" }
+        self.pb_save_names = ["vs_gpu/scores/FloorDiv",
+                              "vs_gpu/scores/FloorDiv_1",
+                              "vs_gpu/scores/sub_2",
+                              "vs_gpu/scores/Reshape_5" ]
+        self.pb_input_names = {"batch_questions": "input_q:0",
+                               "batch_passages": "input_p:0" }
         self.pb_output_names = {}
         self.pb_output_names["span_probs"] = "vs_gpu/scores/Reshape_5:0"
         self.pb_output_names["idx_passage"] = "vs_gpu/scores/FloorDiv:0"

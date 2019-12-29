@@ -4,10 +4,6 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-import sys
-sys.path.append('..')
-
-
 from Zeras.vocab import Vocab
 from Zeras.data_batcher import DataBatcher
 
@@ -147,8 +143,12 @@ if __name__ == '__main__':
     settings.rand_unif_init_mag = 0.02
     settings.trunc_norm_init_std = 1e-4
     #
+    settings.result_dir = os.path.join(settings.base_dir, "result")
+    if not os.path.exists(settings.result_dir):
+        os.mkdir(settings.result_dir)
+    #
     # model & vocab
-    settings.model_tag = "multidocqa"
+    settings.model_tag = "multi_doc_qa"
     settings.vocab = vocab
     #
     # mode
@@ -159,6 +159,7 @@ if __name__ == '__main__':
         #
         settings.is_train = True
         settings.check_settings()
+        settings.logger.info("{}".format(args))
         #
         model = ModelDocQA(settings)
         model.prepare_for_train_and_valid(settings.model_dir)
@@ -173,7 +174,7 @@ if __name__ == '__main__':
         #
         settings.is_train = True
         settings.check_settings()
-        settings.create_or_reset_log_file()
+        settings.logger.info("{}".format(args))
         #
         model = ModelDocQA(settings)
         model.prepare_for_train_and_valid(settings.model_dir)
@@ -192,7 +193,7 @@ if __name__ == '__main__':
         #
         settings.is_train = False
         settings.check_settings()
-        settings.create_or_reset_log_file()
+        settings.logger.info("{}".format(args))
         #
         pb_file = os.path.join(settings.model_dir + "_best", "model_frozen.pb")
         model = ModelDocQA(settings)
@@ -207,7 +208,7 @@ if __name__ == '__main__':
     elif args.mode == "convert":
         settings.is_train = False
         settings.check_settings()
-        settings.create_or_reset_log_file()
+        settings.logger.info("{}".format(args))
         #
         model = ModelDocQA(settings)
         ModelDocQA.load_ckpt_and_save_pb_file(model, settings.model_dir + "_best")
