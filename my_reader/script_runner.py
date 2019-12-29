@@ -159,7 +159,6 @@ if __name__ == '__main__':
         #
         settings.is_train = True
         settings.check_settings()
-        settings.create_or_reset_log_file()
         #
         model = ModelDocQA(settings)
         model.prepare_for_train_and_valid(settings.model_dir)

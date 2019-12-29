@@ -112,27 +112,37 @@ class ModelSettingsBaseboard(object):
         if self.log_path is None: self.log_path = os.path.join(
                 self.log_dir, self.model_name + "_" + str_datetime +".txt")
         #
-        self.logger = logging.getLogger(self.log_path)  # use log_path as log_name
-        self.logger.setLevel(logging.INFO)
-        handler = logging.FileHandler(self.log_path)
+        self.logger = self.create_logger(self.log_path)
+        print("settings checked")
+        #
+        self.logger.info(self.trans_info_to_dict())
+        self.display()
+        #
+        
+    def create_logger(self, log_path):
+        """
+        """
+        logger = logging.getLogger(log_path)  # use log_path as log_name
+        logger.setLevel(logging.INFO)
+        handler = logging.FileHandler(log_path)
         handler.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        logger.addHandler(handler)
         # self.logger.info('test')
-        #
-        self.display()
-        #
-        print("settings checked, log_file to be created")
-        #
-        
-    def create_or_reset_log_file(self):        
-        with open(self.log_path, 'w', encoding='utf-8'):
-            print("log file created")
-        
-    def close_logger(self):
-        for item in self.logger.handlers:
+        return logger
+
+    def create_or_reset_log_file(self, log_path=None):
+        if log_path is None:
+            log_path = self.log_path        
+        with open(log_path, 'w', encoding='utf-8'):
+            print("log file renewed")
+    
+    def close_logger(self, logger=None):
+        if logger is None:
+            logger = self.logger
+        for item in logger.handlers:
             item.close()
             print("logger handler item closed")
     
@@ -141,7 +151,7 @@ class ModelSettingsBaseboard(object):
         """
         """        
         print()
-        for name,value in vars(self).items():
+        for name, value in vars(self).items():
             if not isinstance(value, (int, float, str, bool, list, dict, tuple)):
                 continue
             print(str(name) + ': ' + str(value))
@@ -152,7 +162,7 @@ class ModelSettingsBaseboard(object):
         """
         """                
         info_dict = {}
-        for name,value in vars(self).items():
+        for name, value in vars(self).items():
             if not isinstance(value, (int, float, str, bool, list, dict, tuple)):
                 continue
             info_dict[str(name)] = value        

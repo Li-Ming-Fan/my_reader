@@ -112,7 +112,7 @@ class ModelBaseboard(metaclass=ABCMeta):
             str_datetime = time.strftime("%Y-%m-%d-%H-%M")
             log_path = os.path.join(settings.log_dir, settings.model_name + "_" + str_datetime +".txt")
             self.log_path = log_path
-            self.logger = ModelBaseboard.create_logger(log_path)
+            self.logger = self.create_logger(log_path)
         #
         """
         for key in settings.__dict__.keys():                 
@@ -129,8 +129,7 @@ class ModelBaseboard(metaclass=ABCMeta):
         self.sess_config.gpu_options.allow_growth = settings.gpu_mem_growth
         #
 
-    @staticmethod
-    def create_logger(log_path):
+    def create_logger(self, log_path):
         """
         """
         logger = logging.getLogger(log_path)  # use log_path as log_name
@@ -144,14 +143,16 @@ class ModelBaseboard(metaclass=ABCMeta):
         # self.logger.info('test')
         return logger
 
-    @staticmethod
-    def create_or_reset_log_file(log_path):        
+    def create_or_reset_log_file(self, log_path=None):
+        if log_path is None:
+            log_path = self.log_path        
         with open(log_path, 'w', encoding='utf-8'):
             print("log file renewed")
     
-    @staticmethod
-    def close_logger(logger):
-        for item in self.logger.handlers:
+    def close_logger(self, logger=None):
+        if logger is None:
+            logger = self.logger
+        for item in logger.handlers:
             item.close()
             print("logger handler item closed")
 
