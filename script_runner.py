@@ -212,6 +212,7 @@ if __name__ == '__main__':
         #
         model = ModelDocQA(settings)
         ModelDocQA.load_ckpt_and_save_pb_file(model, settings.model_dir + "_best")
+        model.close_logger()
         print("load_ckpt_and_save_pb_file() finished")
     else:
         print("args.mode must be [train|eval|predict|convert]")
