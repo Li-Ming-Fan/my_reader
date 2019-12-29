@@ -7,7 +7,7 @@ import random
 from collections import Counter
 from collections import namedtuple
 
-from vocab import Vocab
+from Zeras.vocab import Vocab
 
 #
 def example_generator(filelist, is_train_data, max_p_len, single_pass):

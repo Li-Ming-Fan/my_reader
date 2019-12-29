@@ -7,7 +7,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import time
 import pickle
 
-from vocab import Vocab
+from Zeras.vocab import Vocab
 from data_utils import example_generator, build_vocab
 
 #

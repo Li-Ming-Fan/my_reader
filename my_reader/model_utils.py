@@ -23,7 +23,7 @@ def do_eval(model, batcher, settings, result_dir=None, result_prefix=None, save_
         count += 1
         print(count)
         #
-        loss = results["loss"]
+        loss = results["loss_optim"]
         idx_passage = results["idx_passage"]
         idx_start = results["idx_start"]
         idx_end = results["idx_end"]
@@ -119,7 +119,7 @@ def do_train(model, train_batcher, settings):
         # count += 1
         # print(count)
         #
-        loss = results["loss"]
+        loss = results["loss_optim"]
         global_step = results["global_step"]
         lr = results["lr"]
         #
@@ -159,7 +159,7 @@ def do_predict(model, batcher, settings, result_dir=None, result_prefix=None, sa
         batch = batcher.get_next_batch()  
         if batch is None: break
         #
-        results = model.predict_one_batch_with_pb(batch)
+        results = model.predict_with_pb_from_batch(batch)
         count += 1
         print(count)
         #

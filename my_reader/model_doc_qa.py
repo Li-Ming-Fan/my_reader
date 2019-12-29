@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 
-from model_baseboard import ModelBaseboard
+from Zeras.model_baseboard import ModelBaseboard
 
 from model_modules import do_encoding, do_matching, do_featuring
 from model_modules import do_meshing_scores
@@ -20,8 +20,21 @@ class ModelDocQA(ModelBaseboard):
         """
         super(ModelDocQA, self).__init__(settings)
         #
+        self.pb_outputs_name = ["vs_gpu/scores/FloorDiv",
+                                "vs_gpu/scores/FloorDiv_1",
+                                "vs_gpu/scores/sub_2",
+                                "vs_gpu/scores/Reshape_5" ]
+        self.pb_input_names = {"questions": "input_q:0",
+                               "passages": "input_p:0" }
+        self.pb_output_names = {}
+        self.pb_output_names["span_probs"] = "vs_gpu/scores/Reshape_5:0"
+        self.pb_output_names["idx_passage"] = "vs_gpu/scores/FloorDiv:0"
+        self.pb_output_names["idx_start"] = "vs_gpu/scores/FloorDiv_1:0"
+        self.pb_output_names["idx_end"] = "vs_gpu/scores/sub_2:0"
+        #
+        self.debug_tensor_names = []
+        #
         
-    
     def build_placeholder(self):
         """
         """        
@@ -35,13 +48,13 @@ class ModelDocQA(ModelBaseboard):
         
         #
         input_tensors = {}
-        input_tensors["questions"] = q
-        input_tensors["passages"] = p
+        input_tensors["batch_questions"] = q
+        input_tensors["batch_passages"] = p
         #
         label_tensors = {}
-        label_tensors["passage_idx"] = passage_idx
-        label_tensors["start_label"] = start_label
-        label_tensors["end_label"] = end_label
+        label_tensors["batch_passage_idx"] = passage_idx
+        label_tensors["batch_start_label"] = start_label
+        label_tensors["batch_end_label"] = end_label
         #
         print(input_tensors)
         #
@@ -51,8 +64,8 @@ class ModelDocQA(ModelBaseboard):
         """
         """
         sett = self.settings
-        questions = input_tensors["questions"]
-        passages = input_tensors["passages"]
+        questions = input_tensors["batch_questions"]
+        passages = input_tensors["batch_passages"]
         
         # keep_prob
         keep_prob = tf.get_variable("keep_prob", shape=[], dtype=tf.float32, trainable=False)
@@ -139,13 +152,13 @@ class ModelDocQA(ModelBaseboard):
         #
         return output_tensors
 
-    def build_loss(self, output_tensors, label_tensors):
+    def build_loss_and_metric(self, output_tensors, label_tensors):
         """
         """
         span_prob = output_tensors["span_probs"]      # [B, N, T, T]
-        passage_idx = label_tensors["passage_idx"]    # [B, ]
-        start_label = label_tensors["start_label"]    # [B, ]
-        end_label = label_tensors["end_label"]        # [B, ]
+        passage_idx = label_tensors["batch_passage_idx"]    # [B, ]
+        start_label = label_tensors["batch_start_label"]    # [B, ]
+        end_label = label_tensors["batch_end_label"]        # [B, ]
         #
         batch_size = tf.shape(span_prob)[0]
         example_idx = tf.range(batch_size)            # [B, ]
@@ -158,100 +171,12 @@ class ModelDocQA(ModelBaseboard):
         loss = - tf.reduce_mean(tf.log(pred_probs + epsilon))
         #
         lossput_tensors = {}
-        lossput_tensors["loss_train"] = loss
+        lossput_tensors["loss_model"] = loss
         lossput_tensors["pred_probs"] = pred_probs
         #
         return lossput_tensors
-    
-    #
-    def set_port_tensors(self):
-        """
-        """
-        self.questions = self.input_tensors["questions"]
-        self.passages = self.input_tensors["passages"]
-        #
-        self.passage_idx_label = self.label_tensors["passage_idx"]
-        self.start_label = self.label_tensors["start_label"]
-        self.end_label = self.label_tensors["end_label"]
-        #
-        self.span_probs = self.output_tensors["span_probs"]
-        self.idx_passage = self.output_tensors["idx_passage"]
-        self.idx_start = self.output_tensors["idx_start"]
-        self.idx_end = self.output_tensors["idx_end"]
-        #
-        self.pred_prob = self.loss_tensors["pred_probs"]
-        #
-        
-        #
-        self.results_train_one_batch = {}
-        self.results_train_one_batch["train_op"] = self.train_op
-        self.results_train_one_batch["global_step"] = self.global_step
-        self.results_train_one_batch["lr"] = self.learning_rate_tensor
-        self.results_train_one_batch["loss"] = self.loss_train_tensor
-        #
-        self.results_eval_one_batch = {}
-        self.results_eval_one_batch["loss"] = self.loss_train_tensor
-        self.results_eval_one_batch["idx_passage"] = self.idx_passage
-        self.results_eval_one_batch["idx_start"] = self.idx_start
-        self.results_eval_one_batch["idx_end"] = self.idx_end   
-        self.results_eval_one_batch["pred_prob"] = self.pred_prob
-        #
-        print(self.results_eval_one_batch)
-        print(self.span_probs)
-        #
-    
-    def make_feed_dict_for_train(self, batch):
-        """
-        """
-        feed_dict = {}
-        feed_dict[self.questions] = batch["batch_questions"]
-        feed_dict[self.passages] = batch["batch_passages"]
-        #
-        feed_dict[self.passage_idx_label] = batch["batch_passage_idx"]
-        feed_dict[self.start_label] = batch["batch_start_label"]
-        feed_dict[self.end_label] = batch["batch_end_label"]
-        #
-        # print(batch)
-        #
-        return feed_dict
-    
-    #
-    # predict
-    def set_port_tensors_for_predict(self):
-        """
-        """
-        self.pb_outputs_name = ["vs_gpu/scores/FloorDiv",
-                                "vs_gpu/scores/FloorDiv_1",
-                                "vs_gpu/scores/sub_2",
-                                "vs_gpu/scores/Reshape_5" ]
-        self.outputs_predict_name = [item + ":0" for item in self.pb_outputs_name]
-        #
-        # graph
-        graph, sess = self.get_model_graph_and_sess()
-        #
-        # inputs
-        self.questions = graph.get_tensor_by_name("input_q:0")
-        self.passages = graph.get_tensor_by_name("input_p:0")
-        #
-        # outputs
-        self.outputs_predict = []
-        for item in self.outputs_predict_name:
-            self.outputs_predict.append(graph.get_tensor_by_name(item))
-        #        
-        
-    def make_feed_dict_for_predict(self, batch):
-        """
-        """
-        feed_dict = {}
-        feed_dict[self.questions] = batch["batch_questions"]
-        feed_dict[self.passages] = batch["batch_passages"]
-        #
-        # feed_dict[self.passage_idx_label] = batch["batch_passage_idx"]
-        # feed_dict[self.start_label] = batch["batch_start_label"]
-        # feed_dict[self.end_label] = batch["batch_end_label"]
-        #
-        # print(batch)
-        #
-        return feed_dict
+
+
+
     
     

@@ -8,11 +8,12 @@ import sys
 sys.path.append('..')
 
 
-from vocab import Vocab
-from data_batcher import DataBatcher
+from Zeras.vocab import Vocab
+from Zeras.data_batcher import DataBatcher
 
 from data_utils import example_generator, do_batch_std
 from model_doc_qa import ModelDocQA
+from model_settings import ModelSettings
 
 import model_utils
 
@@ -77,8 +78,8 @@ def parse_args():
     """
     parser = argparse.ArgumentParser('Reading Comprehension')
     #
-    parser.add_argument('--mode', choices=['prepare', 'train', 'eval', 'predict', 'convert'],
-                        default = 'predict', help='run mode')
+    parser.add_argument('--mode', choices=['train', 'eval', 'predict', 'convert'],
+                        default = 'train', help='run mode')
     parser.add_argument('--note', type=str, default = "note_something",
                         help='note_something')
     parser.add_argument('--debug', type=int, default = 1, 
@@ -86,39 +87,9 @@ def parse_args():
     #
     parser.add_argument('--gpu', type=str, default = '0',
                         help='specify gpu device')
-    parser.add_argument('--gpu_batch_split', type=list, default = [12, 24],
-                        help='gpu_batch_split')
-    #
-    parser.add_argument('--batch_size', type = int, default = 32, 
-                        help = 'batch_size')
-    parser.add_argument('--check_period', type = int, default = 100, 
-                        help = 'check_period')
     #
     parser.add_argument('--restart', type = bool, default = False,
                         help='restart')
-    parser.add_argument('--opt', type = str, default = "adam",
-                        help='optimizer_type')
-    #
-    parser.add_argument('--base_dir', default = None,
-                        help='the base dir')
-    #
-    parser.add_argument('--max_p_num', type=int, default = 5,
-                        help='max passage num in one sample')
-    parser.add_argument('--max_p_len', type=int, default = 500,
-                        help='max length of passage')
-    parser.add_argument('--max_q_len', type=int, default = 60,
-                        help='max length of question')
-    parser.add_argument('--max_a_len', type=int, default = 200,
-                        help='max length of answer')    
-    #
-    parser.add_argument('--vocab_dir', default = None,
-                        help='vocab_dir')
-    parser.add_argument('--emb_dim', type=int, default= 256,
-                        help='emb_dim')
-    parser.add_argument('--embed_file', default = None,
-                        help='embed_file')
-    parser.add_argument('--token_min_cnt', type=int, default = 5,
-                        help='token_min_cnt')
     #
     return parser.parse_args()
 
@@ -132,125 +103,115 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     #
 
+    # settings
+    settings = ModelSettings()
+    settings.gpu_available = args.gpu
+
     # data
-    dir_vocab_args = args.vocab_dir
-    dir_base_args = args.base_dir
     if args.debug == 1:
         train_files = demo_data["train"]
         dev_files = demo_data["dev"]
         test_files = demo_data["test"]
         #
-        args.vocab_dir = dir_vocab_demo
-        args.base_dir = "../task_mrc_demo"
+        settings.tokens_file = os.path.join(dir_vocab_demo, "vocab_tokens.txt")
+        settings.base_dir = "../task_mrc_demo"
         #
-        assign_paras_from_dict(args, debug_paras)
+        assign_paras_from_dict(settings, debug_paras)
         #
     else:
         train_files = data_all["train"]
         dev_files = data_all["dev"]
         test_files = data_all["test"]
         #
-        args.vocab_dir = dir_vocab_all
-        args.base_dir = "../task_mrc_all"
+        settings.tokens_file = os.path.join(dir_vocab_all, "vocab_tokens.txt")
+        settings.base_dir = "../task_mrc_all"
         #
-        assign_paras_from_dict(args, model_paras)
+        assign_paras_from_dict(settings, model_paras)
         #
-    #
-    if dir_vocab_args is not None:
-        args.vocab_dir = dir_vocab_args
-    #
-    if dir_base_args is not None:
-        args.model_dir = dir_base_args
     #
     # data files
     print('checking the data files...')
     for data_path in train_files + dev_files + test_files:
         assert os.path.exists(data_path), '{} file does not exist.'.format(data_path)
     #
-    # directories
-    print('preparing the directories...')
-    args.model_dir = os.path.join(args.base_dir, "model")
-    args.log_dir = os.path.join(args.base_dir, "log")
-    args.result_dir = os.path.join(args.base_dir, "result")
-    #
-    for dir_path in [args.base_dir, args.model_dir, args.log_dir, args.result_dir]:
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-    #
     # vocab
-    print('loading vocabulary ...')
-    tokens_file = os.path.join(args.vocab_dir, "vocab_tokens.txt")
+    print('loading vocabulary ...')    
     vocab = Vocab(lower=True)
-    vocab.add_tokens_from_file(tokens_file)
+    vocab.add_tokens_from_file(settings.tokens_file)
     #
     print('assigning embeddings...')
-    vocab.load_pretrained_embeddings(args.embed_file)
+    vocab.load_pretrained_embeddings(settings.emb_file)
     #
     # more settings
-    args.vocab = vocab
+    settings.adagrad_init_acc = 0.1
+    settings.rand_unif_init_mag = 0.02
+    settings.trunc_norm_init_std = 1e-4
     #
-    args.keep_prob = 0.7
-    #
-    args.check_period_batch = args.check_period
-    #
-    args.learning_rate_base = 0.0005
-    args.warmup_steps = 5000
-    args.decay_steps = 5000
-    args.decay_rate = 0.99
-    args.staircase = True
-    #
-    args.optimizer_type = args.opt # "adam"  # "sgd"  # "adagrad"
-    args.momentum = 0.9
-    args.adagrad_init_acc = 0.1
-    args.rand_unif_init_mag = 0.02
-    args.trunc_norm_init_std = 1e-4
+    # model & vocab
+    settings.model_tag = "multidocqa"
+    settings.vocab = vocab
     #
     # mode
     if args.mode == "train":
-        example_gen = lambda single_pass: example_generator(train_files, True, args.max_p_len, single_pass)
-        batch_stder = lambda items: do_batch_std(items, vocab, args)
-        batcher = DataBatcher(example_gen, batch_stder, args.batch_size, single_pass=False)
+        example_gen = lambda single_pass: example_generator(train_files, True, settings.max_p_len, single_pass)
+        batch_stder = lambda items: do_batch_std(items, vocab, settings)
+        batcher = DataBatcher(example_gen, batch_stder, settings.batch_size, single_pass=False)
         #
-        model = ModelDocQA(args)
-        model.prepare_for_train(args.model_dir)
+        settings.is_train = True
+        settings.check_settings()
+        settings.create_or_reset_log_file()
         #
-        model_utils.do_train(model, batcher, args)
+        model = ModelDocQA(settings)
+        model.prepare_for_train_and_valid(settings.model_dir)
+        #
+        model_utils.do_train(model, batcher, settings)
         model.close_logger()
         #
     elif args.mode == "eval":
-        example_gen = lambda single_pass: example_generator(dev_files, True, args.max_p_len, single_pass)
-        batch_stder = lambda items: do_batch_std(items, vocab, args)
-        batcher = DataBatcher(example_gen, batch_stder, args.batch_size, single_pass=True)  # batch_size
+        example_gen = lambda single_pass: example_generator(dev_files, True, settings.max_p_len, single_pass)
+        batch_stder = lambda items: do_batch_std(items, vocab, settings)
+        batcher = DataBatcher(example_gen, batch_stder, settings.batch_size, single_pass=True)  # batch_size
         #
-        model = ModelDocQA(args)
-        model.prepare_for_train(args.model_dir)
+        settings.is_train = True
+        settings.check_settings()
+        settings.create_or_reset_log_file()
+        #
+        model = ModelDocQA(settings)
+        model.prepare_for_train_and_valid(settings.model_dir)
         model.assign_dropout_keep_prob(1.0)
         #
-        model_utils.do_eval(model, batcher, args,
-                            result_dir = args.result_dir,
+        model_utils.do_eval(model, batcher, settings,
+                            result_dir = settings.result_dir,
                             result_prefix = "eval",
                             save_full_info = False)
         model.close_logger()
         #
     elif args.mode == "predict":
-        example_gen = lambda single_pass: example_generator(test_files, False, args.max_p_len, single_pass)
-        batch_stder = lambda items: do_batch_std(items, vocab, args)
-        batcher = DataBatcher(example_gen, batch_stder, args.batch_size, single_pass=True)
+        example_gen = lambda single_pass: example_generator(test_files, False, settings.max_p_len, single_pass)
+        batch_stder = lambda items: do_batch_std(items, vocab, settings)
+        batcher = DataBatcher(example_gen, batch_stder, settings.batch_size, single_pass=True)
         #
-        pb_file = os.path.join(args.model_dir + "_best", "model_frozen.pb")
-        model = ModelDocQA(args)
+        settings.is_train = False
+        settings.check_settings()
+        settings.create_or_reset_log_file()
+        #
+        pb_file = os.path.join(settings.model_dir + "_best", "model_frozen.pb")
+        model = ModelDocQA(settings)
         model.prepare_for_prediction_with_pb(pb_file)
         #
-        model_utils.do_predict(model, batcher, args,
-                               result_dir = args.result_dir,
+        model_utils.do_predict(model, batcher, settings,
+                               result_dir = settings.result_dir,
                                result_prefix = "pred",
                                save_full_info = False)
         model.close_logger()
         #
     elif args.mode == "convert":
-        args.is_train = False
-        model = ModelDocQA(args)
-        model.load_ckpt_and_save_pb_file(model, args.model_dir + "_best")
+        settings.is_train = False
+        settings.check_settings()
+        settings.create_or_reset_log_file()
+        #
+        model = ModelDocQA(settings)
+        ModelDocQA.load_ckpt_and_save_pb_file(model, settings.model_dir + "_best")
         print("load_ckpt_and_save_pb_file() finished")
     else:
         print("args.mode must be [train|eval|predict|convert]")
