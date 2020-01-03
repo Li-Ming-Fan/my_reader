@@ -144,6 +144,8 @@ if __name__ == '__main__':
     settings.trunc_norm_init_std = 1e-4
     #
     settings.result_dir = os.path.join(settings.base_dir, "result")
+    if not os.path.exists(settings.base_dir):
+        os.mkdir(settings.base_dir)
     if not os.path.exists(settings.result_dir):
         os.mkdir(settings.result_dir)
     #
